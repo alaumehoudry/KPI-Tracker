@@ -202,15 +202,15 @@ export default function HubManagerPage() {
         )}
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[1,2,3,4,5].map((i) => <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />)}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />)}
           </div>
         ) : summary ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <KPICard label="Total RDV"       value={summary.totalRDV} sub="équipe" />
-            <KPICard label="Taux présence"   value={`${summary.tauxPresence}%`}   sub={`cible ${KPI_TARGETS.tauxPresence}%`}   colorClass={getColorForRate(summary.tauxPresence,   KPI_TARGETS.tauxPresence)}  />
-            <KPICard label="Taux closing"    value={`${summary.tauxClosing}%`}    sub={`cible ${KPI_TARGETS.tauxClosing}%`}    colorClass={getColorForRate(summary.tauxClosing,    KPI_TARGETS.tauxClosing)}   />
-            <KPICard label="Net Revenue"     value={`${summary.netRevenue.toLocaleString('fr-FR')} €`} colorClass="text-green-600" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <KPICard label="Total RDV effectués" value={summary.totalPresents} sub="équipe" />
+            <KPICard label="Taux de présence"    value={`${summary.tauxPresence}%`} sub={`cible ${KPI_TARGETS.tauxPresence}%`} colorClass={getColorForRate(summary.tauxPresence, KPI_TARGETS.tauxPresence)} />
+            <KPICard label="Total Ventes"        value={summary.totalVentes} sub="équipe" />
+            <KPICard label="Taux de closing"     value={`${summary.tauxClosing}%`}  sub={`cible ${KPI_TARGETS.tauxClosing}%`}  colorClass={getColorForRate(summary.tauxClosing,  KPI_TARGETS.tauxClosing)}  />
           </div>
         ) : null}
 

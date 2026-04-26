@@ -13,7 +13,7 @@ export default function Scorecard({ stats, loading }: Props) {
   if (loading) {
     return (
       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />
         ))}
       </div>
@@ -22,24 +22,32 @@ export default function Scorecard({ stats, loading }: Props) {
 
   if (!stats) return null;
 
-  const items = [
+  type Item =
+    | { label: string; display: string; pct: number; target: number }
+    | { label: string; display: string; pct?: undefined };
+
+  const items: Item[] = [
     {
-      label: 'RDV planifiés',
-      display: `${stats.totalRDV} / ${KPI_TARGETS.rdvHebdo}`,
-      pct: Math.min(Math.round((stats.totalRDV / KPI_TARGETS.rdvHebdo) * 100), 100),
-      target: 100,
+      label:   'Total RDV effectués',
+      display: `${stats.rdvEffectues} / ${KPI_TARGETS.rdvHebdo}`,
+      pct:     Math.min(Math.round((stats.rdvEffectues / KPI_TARGETS.rdvHebdo) * 100), 100),
+      target:  100,
     },
     {
-      label: 'Présence',
+      label:   'Taux de présence',
       display: `${stats.tauxPresence}%`,
-      pct: stats.tauxPresence,
-      target: KPI_TARGETS.tauxPresence,
+      pct:     stats.tauxPresence,
+      target:  KPI_TARGETS.tauxPresence,
     },
     {
-      label: 'Closing',
+      label:   'Total Ventes',
+      display: `${stats.ventesSignees}`,
+    },
+    {
+      label:   'Taux de closing',
       display: `${stats.tauxClosing}%`,
-      pct: stats.tauxClosing,
-      target: KPI_TARGETS.tauxClosing,
+      pct:     stats.tauxClosing,
+      target:  KPI_TARGETS.tauxClosing,
     },
   ];
 
@@ -55,23 +63,17 @@ export default function Scorecard({ stats, loading }: Props) {
               <span className="text-gray-600">{item.label}</span>
               <span className="font-bold text-gray-900">{item.display}</span>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${getBgColorForRate(item.pct, item.target)}`}
-                style={{ width: `${item.pct}%` }}
-              />
-            </div>
+            {item.pct !== undefined && (
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${getBgColorForRate(item.pct, item.target)}`}
+                  style={{ width: `${item.pct}%` }}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
-      {stats.netRevenue > 0 && (
-        <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center">
-          <span className="text-sm text-gray-500">Net revenue</span>
-          <span className="font-bold text-green-600 text-xl">
-            {stats.netRevenue.toLocaleString('fr-FR')} €
-          </span>
-        </div>
-      )}
     </div>
   );
 }
