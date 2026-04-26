@@ -44,7 +44,21 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git rm *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(open *)",
+      "Bash(npx tsx *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s https://sspllverlblvsdpflrat.supabase.co/rest/v1/rpc/query_duplicates -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzcGxsdmVybGJsdnNkcGZscmF0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzIwMzM0OCwiZXhwIjoyMDkyNzc5MzQ4fQ.MUjYT9de26kUS0iGut__vY9lsDHFH3v6aL0GXIx63BE')",
+      "Bash(curl *)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@clerk/nextjs/package.json'\\); console.log\\('clerk version:', pkg.version\\)\")",
+      "Bash(node -e \"require\\('@clerk/nextjs/server'\\)\")",
+      "Bash(node *)",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); [print\\(k\\) for k in \\(p.get\\('exports'\\) or {}\\).keys\\(\\)]\")",
+      "Bash(python3 *)"
     ]
   }
 }

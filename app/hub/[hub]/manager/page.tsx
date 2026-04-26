@@ -6,8 +6,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonth
 import { fr } from 'date-fns/locale';
 import KPICard from '@/components/KPICard';
 import RepTable from '@/components/RepTable';
-import TeamBookingChart from '@/components/TeamBookingChart';
-import type { RepStats, TeamSummary, BookingEntry } from '@/lib/types';
+import type { RepStats, TeamSummary } from '@/lib/types';
 import { KPI_TARGETS, HUB_CONFIG } from '@/lib/constants';
 import { getColorForRate, fetchJson } from '@/lib/utils';
 
@@ -34,11 +33,10 @@ export default function HubManagerPage() {
     return startOfWeek(new Date(), { weekStartsOn: 1 });
   });
   const [currentMonth,   setCurrentMonth]   = useState(() => new Date());
-  const [stats,          setStats]          = useState<RepStats[]>([]);
-  const [summary,        setSummary]        = useState<TeamSummary | null>(null);
-  const [bookingEntries, setBookingEntries] = useState<BookingEntry[]>([]);
-  const [loading,        setLoading]        = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
+  const [stats,   setStats]   = useState<RepStats[]>([]);
+  const [summary, setSummary] = useState<TeamSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef     = useRef<AbortController | null>(null);
@@ -68,21 +66,14 @@ export default function HubManagerPage() {
 
     try {
       const periodParam = view === 'weekly' ? `week=${weekKey}` : `month=${monthKey}`;
-      const [statsData, bookingsData] = await Promise.all([
-        fetchJson<{ stats: RepStats[]; summary: TeamSummary }>(
-          `/api/stats?hub=${hub}&${periodParam}`,
-          ac.signal
-        ),
-        fetchJson<{ entries: BookingEntry[] }>(
-          `/api/bookings?hub=${hub}&${periodParam}`,
-          ac.signal
-        ),
-      ]);
+      const statsData = await fetchJson<{ stats: RepStats[]; summary: TeamSummary }>(
+        `/api/stats?hub=${hub}&${periodParam}`,
+        ac.signal
+      );
 
       if (ac.signal.aborted) return;
       setStats(statsData.stats ?? []);
       setSummary(statsData.summary ?? null);
-      setBookingEntries(bookingsData.entries ?? []);
     } catch (err) {
       if (ac.signal.aborted) return;
       const msg = err instanceof Error ? err.message : 'Erreur de chargement';
@@ -99,42 +90,28 @@ export default function HubManagerPage() {
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
   }, [fetchStats]);
 
-  const rdvPrisMap: Record<string, number> = {};
-  for (const entry of bookingEntries) {
-    rdvPrisMap[entry.repName] = (rdvPrisMap[entry.repName] ?? 0) + entry.count;
-  }
-
   function handleRepClick(repName: string) {
     router.push(`/hub/${hub}/manager/${encodeURIComponent(repName)}?week=${weekKey}`);
   }
 
   function exportCSV() {
     const headers = [
-      'Commercial', 'RDV pris', '% vs cible', 'RDV effectués',
-      'Taux présence %', 'Taux closing %', 'Ventes signées', 'Activés',
-      'Register', 'Contrat', 'POS Plus',
+      'Commercial', 'RDV effectués', 'Taux présence %', 'Taux closing %',
+      'Ventes signées', 'Register', 'Contrat', 'POS Plus',
     ];
-    const rdvTarget = view === 'weekly' ? KPI_TARGETS.rdvHebdo : KPI_TARGETS.rdvHebdo * 4;
     const dataRows = stats
       .filter((s) => s.totalRDV > 0)
       .sort((a, b) => b.totalRDV - a.totalRDV)
-      .map((s) => {
-        const pris = rdvPrisMap[s.repName] ?? null;
-        const pct  = pris !== null && rdvTarget > 0 ? Math.round((pris / rdvTarget) * 100) : null;
-        return [
-          s.repName,
-          pris ?? '',
-          pct !== null ? `${pct}%` : '',
-          s.rdvEffectues  > 0 ? s.rdvEffectues        : '',
-          s.totalRDV     > 0 ? `${s.tauxPresence}%`  : '',
-          s.rdvEffectues > 0 ? `${s.tauxClosing}%`   : '',
-          s.ventesSignees > 0 ? s.ventesSignees        : '',
-          s.clientsActives > 0 ? s.clientsActives      : '',
-          s.totalRegister > 0 ? s.totalRegister        : '',
-          s.totalContrat  > 0 ? s.totalContrat         : '',
-          s.totalPosPlus  > 0 ? s.totalPosPlus         : '',
-        ];
-      });
+      .map((s) => [
+        s.repName,
+        s.rdvEffectues  > 0 ? s.rdvEffectues       : '',
+        s.totalRDV      > 0 ? `${s.tauxPresence}%` : '',
+        s.rdvEffectues  > 0 ? `${s.tauxClosing}%`  : '',
+        s.ventesSignees > 0 ? s.ventesSignees       : '',
+        s.totalRegister > 0 ? s.totalRegister       : '',
+        s.totalContrat  > 0 ? s.totalContrat        : '',
+        s.totalPosPlus  > 0 ? s.totalPosPlus        : '',
+      ]);
 
     const csv = [headers, ...dataRows].map((r) => r.join(';')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -233,23 +210,9 @@ export default function HubManagerPage() {
             <KPICard label="Total RDV"       value={summary.totalRDV} sub="équipe" />
             <KPICard label="Taux présence"   value={`${summary.tauxPresence}%`}   sub={`cible ${KPI_TARGETS.tauxPresence}%`}   colorClass={getColorForRate(summary.tauxPresence,   KPI_TARGETS.tauxPresence)}  />
             <KPICard label="Taux closing"    value={`${summary.tauxClosing}%`}    sub={`cible ${KPI_TARGETS.tauxClosing}%`}    colorClass={getColorForRate(summary.tauxClosing,    KPI_TARGETS.tauxClosing)}   />
-            <KPICard label="Taux activation" value={`${summary.tauxActivation}%`} sub={`cible ${KPI_TARGETS.tauxActivation}%`} colorClass={getColorForRate(summary.tauxActivation, KPI_TARGETS.tauxActivation)} />
             <KPICard label="Net Revenue"     value={`${summary.netRevenue.toLocaleString('fr-FR')} €`} colorClass="text-green-600" />
           </div>
         ) : null}
-
-        {loading ? (
-          <div className="h-56 bg-gray-100 rounded-2xl animate-pulse" />
-        ) : (
-          <TeamBookingChart
-            entries={bookingEntries}
-            view={view}
-            weekStart={weekKey}
-            currentMonth={currentMonth}
-            repNames={sortedRepNames}
-            teamSize={sortedRepNames.length}
-          />
-        )}
 
         <section>
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
@@ -261,7 +224,6 @@ export default function HubManagerPage() {
             <RepTable
               stats={stats}
               view={view}
-              rdvPrisMap={rdvPrisMap}
               onRepClick={handleRepClick}
             />
           )}

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllRows, getBookingsWithClients } from '@/lib/sheets';
-import { isInWeekRange } from '@/lib/utils';
+import { getBookingsWithClients } from '@/lib/sheets';
+import { supabase } from '@/lib/supabase';
 import { HUB_CONFIG } from '@/lib/constants';
 import { addDays, format } from 'date-fns';
 import type { AgendaDay } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+function weekToSunday(monday: string): string {
+  const d = new Date(monday + 'T12:00:00');
+  d.setDate(d.getDate() + 6);
+  return d.toISOString().slice(0, 10);
+}
 
 export async function GET(req: NextRequest) {
   const t0 = Date.now();
@@ -23,18 +29,35 @@ export async function GET(req: NextRequest) {
   const hubCfg = HUB_CONFIG[hub];
   if (!hubCfg) return NextResponse.json({ error: 'Unknown hub' }, { status: 400 });
 
+  const repId = hubCfg.repMap[rep];
+  if (!repId) {
+    console.error(`[GET /api/agenda] repId not found for repName="${rep}" in hub="${hub}"`);
+    return NextResponse.json({ error: 'Unknown rep' }, { status: 400 });
+  }
+
+  const sunday = weekToSunday(week);
+
   try {
-    const [bookings, allRows] = await Promise.all([
+    const [bookings, rdvRes] = await Promise.all([
       getBookingsWithClients({ week, repName: rep, hub }),
-      getAllRows(hub),
+      supabase
+        .from('rdv')
+        .select('client, date_rdv, heure_rdv, rdv_effectue, vente_signee, net_revenue, register, contrat, pos_plus')
+        .eq('hub', hub)
+        .eq('commercial', repId)
+        .gte('date_rdv', week)
+        .lte('date_rdv', sunday),
     ]);
 
-    const repId = hubCfg.repMap[rep];
-    const repRows = allRows.filter(
-      (r) => r.commercial === repId && isInWeekRange(r.dateRDV, week)
-    );
+    if (rdvRes.error) {
+      console.error(`[GET /api/agenda] Supabase error:`, rdvRes.error.message);
+      throw new Error(rdvRes.error.message);
+    }
 
-    const monday = new Date(week + 'T00:00:00');
+    const rdvData = rdvRes.data ?? [];
+    console.log(`[GET /api/agenda] hub=${hub} rep=${rep} repId=${repId} week=${week}→${sunday} rdvs=${rdvData.length} bookings=${bookings.length}`);
+
+    const monday = new Date(week + 'T12:00:00');
     const days: AgendaDay[] = [];
 
     for (let i = 0; i < 7; i++) {
@@ -44,17 +67,17 @@ export async function GET(req: NextRequest) {
         bookings: bookings
           .filter((b) => b.date === date)
           .map((b) => ({ clientName: b.clientName, time: b.time })),
-        rdvs: repRows
-          .filter((r) => r.dateRDV === date)
+        rdvs: rdvData
+          .filter((r) => r.date_rdv === date)
           .map((r) => ({
-            client:      r.client,
-            heureRDV:    r.heureRDV,
-            rdvEffectue: r.rdvEffectue,
-            venteSignee: r.venteSignee,
-            netRevenue:  r.netRevenue,
-            register:    r.register,
-            contrat:     r.contrat,
-            posPlus:     r.posPlus,
+            client:      r.client as string,
+            heureRDV:    r.heure_rdv as string,
+            rdvEffectue: r.rdv_effectue ? 'Oui' : 'Non',
+            venteSignee: r.vente_signee ? 'Oui' : 'Non',
+            netRevenue:  r.net_revenue as number | null,
+            register:    !!r.register,
+            contrat:     !!r.contrat,
+            posPlus:     !!r.pos_plus,
           })),
       });
     }

@@ -46,7 +46,6 @@ export default function RDVForm({ repName, hub, onClose, onSuccess, onError, onC
   const [heureRDV,     setHeureRDV]     = useState(nowHour);
   const [rdvEffectue,  setRdvEffectue]  = useState(false);
   const [venteSignee,  setVenteSignee]  = useState(false);
-  const [clientActive, setClientActive] = useState(false);
   const [netRevenue,   setNetRevenue]   = useState('');
   const [register,     setRegister]     = useState(false);
   const [contrat,      setContrat]      = useState(false);
@@ -81,7 +80,6 @@ export default function RDVForm({ repName, hub, onClose, onSuccess, onError, onC
           heureRDV,
           rdvEffectue,
           venteSignee,
-          clientActive,
           netRevenue: venteSignee && netRevenue ? parseFloat(netRevenue) : null,
           register,
           contrat,
@@ -191,7 +189,7 @@ export default function RDVForm({ repName, hub, onClose, onSuccess, onError, onC
               onChange={(v) => {
                 setRdvEffectue(v);
                 if (!v) {
-                  setVenteSignee(false); setClientActive(false);
+                  setVenteSignee(false);
                   setNetRevenue(''); setRegister(false); setContrat(false); setPosPlus(false);
                 }
               }}
@@ -206,7 +204,6 @@ export default function RDVForm({ repName, hub, onClose, onSuccess, onError, onC
                 onChange={(v) => {
                   setVenteSignee(v);
                   if (!v) {
-                    setClientActive(false);
                     setNetRevenue(''); setRegister(false); setContrat(false); setPosPlus(false);
                   }
                 }}
@@ -254,12 +251,6 @@ export default function RDVForm({ repName, hub, onClose, onSuccess, onError, onC
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Client activé / encaissement ?
-                </label>
-                <Toggle value={clientActive} onChange={setClientActive} />
-              </div>
             </>
           )}
 

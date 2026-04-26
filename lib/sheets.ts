@@ -6,7 +6,7 @@ import {
   HUB_CONFIG,
 } from './constants';
 import { parseSheetDate, isInWeekRange, normalizeBookingName } from './utils';
-import type { RDVRow, BookingEntry, CRMProspect, CRMRelance } from './types';
+import type { RDVRow, CRMProspect, CRMRelance } from './types';
 
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
@@ -84,6 +84,7 @@ function parseRDVRow(
   if (!parsedDate || parsedDate.length < 8) return null;
 
   return {
+    id:          '',
     semaine:     parseSheetDate(colA) || parsedDate,
     commercial:  repId,
     client:      colC,
@@ -91,11 +92,9 @@ function parseRDVRow(
     heureRDV:    row[4] ?? '',
     rdvEffectue: (row[5] === 'Oui' ? 'Oui' : 'Non') as 'Oui' | 'Non',
     venteSignee: (row[6] === 'Oui' ? 'Oui' : 'Non') as 'Oui' | 'Non',
-    clientActive:(row[7] === 'Oui' ? 'Oui' : 'Non') as 'Oui' | 'Non',
     netRevenue:  row[8] ? parseFloat(String(row[8]).replace(',', '.')) : null,
     notes:       row[9] ?? '',
     rdvValide:   1 as const,
-    // Mod 5 — product types (col L=11, M=12, N=13)
     register:    row[11] === 'Oui',
     contrat:     row[12] === 'Oui',
     posPlus:     row[13] === 'Oui',
@@ -219,7 +218,6 @@ export async function appendRDV(
     heureRDV: string;
     rdvEffectue: boolean;
     venteSignee: boolean;
-    clientActive: boolean;
     netRevenue: number | null;
     notes: string;
     register: boolean;
@@ -245,13 +243,13 @@ export async function appendRDV(
   const colB = hubCfg.individualReadTab ? repName : repId;
 
   // 14 columns: A=semaine, B=commercial, C=client, D=dateRDV, E=heureRDV,
-  // F=rdvEffectue, G=venteSignee, H=clientActive, I=netRevenue, J=notes, K=rdvValide,
+  // F=rdvEffectue, G=venteSignee, H=(unused), I=netRevenue, J=notes, K=rdvValide,
   // L=register, M=contrat, N=posPlus
   const row = [
     semaine, colB, data.client, data.dateRDV, data.heureRDV,
     data.rdvEffectue ? 'Oui' : 'Non',
     data.venteSignee ? 'Oui' : 'Non',
-    data.clientActive ? 'Oui' : 'Non',
+    '',
     data.netRevenue !== null ? data.netRevenue : '',
     data.notes,
     1,
@@ -347,94 +345,6 @@ function buildNormalisedNameMap(
     m.set(normalizeBookingName(key), val);
   }
   return m;
-}
-
-export async function getRDVPris({
-  week,
-  month,
-  repName,
-  hub = 'sud',
-}: {
-  week?: string;
-  month?: string;
-  repName?: string;
-  hub?: string;
-}): Promise<BookingEntry[]> {
-  const hubCfg = HUB_CONFIG[hub];
-  if (!hubCfg) throw new Error(`Unknown hub: ${hub}`);
-
-  const auth = getAuth();
-  const sheets = google.sheets({ version: 'v4', auth });
-
-  const bookingTab = await resolveBookingTab(sheets);
-
-  // BOOKING DETAIL columns: A=SALES REP, B=MOTION, C=ID, D=FIRST NAME, E=LAST NAME,
-  // F=PHONE, G=EMAIL, H=BUSINESS NAME, I=OPP STATUS, J=PREVIOUS_STATUS,
-  // K=SCHEDULED_AT, L=BOOKING_DATE (index 11), M=BOOKING_TIME
-  const res = await withRetry(
-    () => sheets.spreadsheets.values.get({
-      spreadsheetId: BOOKING_SHEET_ID,
-      range: `${bookingTab}!A:L`,
-    }),
-    `hub=${hub} getRDVPris`
-  );
-
-  const rows = (res.data.values ?? []) as string[][];
-  const normMap = buildNormalisedNameMap(hubCfg.bookingNameMap);
-
-  let matched = 0;
-  let skippedName = 0;
-  let skippedDate = 0;
-  const seenNames = new Set<string>();
-
-  const agg = new Map<string, Map<string, number>>();
-
-  for (const row of rows) {
-    const rawName = String(row[0] ?? '').trim();
-    const bookingDateRaw = String(row[11] ?? '').trim();
-
-    seenNames.add(rawName.toLowerCase());
-
-    const appName = normMap.get(normalizeBookingName(rawName));
-    if (!appName) { skippedName++; continue; }
-    if (repName && normalizeStr(appName) !== normalizeStr(repName)) continue;
-
-    const bookingDate = parseSheetDate(bookingDateRaw);
-    if (!bookingDate || bookingDate.length < 8) { skippedDate++; continue; }
-
-    if (month) {
-      if (!bookingDate.startsWith(month)) continue;
-    } else if (week) {
-      if (!isInWeekRange(bookingDate, week)) continue;
-    } else {
-      continue;
-    }
-
-    matched++;
-    if (!agg.has(appName)) agg.set(appName, new Map());
-    const dayMap = agg.get(appName)!;
-    dayMap.set(bookingDate, (dayMap.get(bookingDate) ?? 0) + 1);
-  }
-
-  console.log(
-    `[getRDVPris:${hub}] tab="${bookingTab}" rows=${rows.length} matched=${matched} skippedName=${skippedName} skippedDate=${skippedDate}`
-  );
-  if (skippedName > 0) {
-    const unmatchedSample = [...seenNames]
-      .filter((n) => n && !normMap.has(normalizeBookingName(n)))
-      .slice(0, 10);
-    if (unmatchedSample.length) {
-      console.log('[getRDVPris] Unmatched names (sample):', unmatchedSample);
-    }
-  }
-
-  const results: BookingEntry[] = [];
-  for (const [rep, dayMap] of agg) {
-    for (const [date, count] of dayMap) {
-      results.push({ repName: rep, date, count });
-    }
-  }
-  return results.sort((a, b) => a.repName.localeCompare(b.repName) || a.date.localeCompare(b.date));
 }
 
 // ── Booking sheet — with client names (for agenda) ────────────────────────────

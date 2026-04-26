@@ -13,7 +13,7 @@ export default function Scorecard({ stats, loading }: Props) {
   if (loading) {
     return (
       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
-        {[1, 2, 3, 4].map((i) => (
+        {[1, 2, 3].map((i) => (
           <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />
         ))}
       </div>
@@ -40,12 +40,6 @@ export default function Scorecard({ stats, loading }: Props) {
       display: `${stats.tauxClosing}%`,
       pct: stats.tauxClosing,
       target: KPI_TARGETS.tauxClosing,
-    },
-    {
-      label: 'Activation',
-      display: `${stats.tauxActivation}%`,
-      pct: stats.tauxActivation,
-      target: KPI_TARGETS.tauxActivation,
     },
   ];
 

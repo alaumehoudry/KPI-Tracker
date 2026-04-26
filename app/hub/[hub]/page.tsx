@@ -7,12 +7,12 @@ import { fr } from 'date-fns/locale';
 import RepSelector from '@/components/RepSelector';
 import RDVForm from '@/components/RDVForm';
 import RDVList from '@/components/RDVList';
+import RDVEditModal from '@/components/RDVEditModal';
 import Scorecard from '@/components/Scorecard';
-import BookingChart from '@/components/BookingChart';
 import CRMView from '@/components/CRMView';
 import AgendaWeek from '@/components/AgendaWeek';
 import Toast from '@/components/Toast';
-import type { RDVRow, RepStats, BookingEntry } from '@/lib/types';
+import type { RDVRow, RepStats } from '@/lib/types';
 import { HUB_CONFIG } from '@/lib/constants';
 import { fetchJson, TimeoutError } from '@/lib/utils';
 
@@ -35,13 +35,12 @@ export default function HubRepPage() {
   const [crmPrefill,      setCRMPrefill]      = useState<{ client: string; dateRDV: string } | null>(null);
   const [rows,            setRows]            = useState<RDVRow[]>([]);
   const [stats,           setStats]           = useState<RepStats | null>(null);
-  const [bookingEntries,  setBookingEntries]  = useState<BookingEntry[]>([]);
-  const [loadingRows,     setLoadingRows]     = useState(false);
-  const [loadingStats,    setLoadingStats]    = useState(false);
-  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [loadingRows,  setLoadingRows]  = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
   const [error,           setError]           = useState<string | null>(null);
   const [slowLoading,     setSlowLoading]     = useState(false);
   const [toast,           setToast]           = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [editingRDV,      setEditingRDV]      = useState<RDVRow | null>(null);
 
   const refreshTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef      = useRef<AbortController | null>(null);
@@ -73,21 +72,16 @@ export default function HubRepPage() {
       const repId = hubCfg.repMap[rep];
       setLoadingRows(true);
       setLoadingStats(true);
-      setLoadingBookings(true);
       setError(null);
 
       try {
-        const [rdvData, statsData, bookingsData] = await Promise.all([
+        const [rdvData, statsData] = await Promise.all([
           fetchJson<{ rows: RDVRow[] }>(
             `/api/rdv?hub=${hub}&rep=${encodeURIComponent(rep)}&week=${weekKey}`,
             ac.signal
           ),
           fetchJson<{ stats: RepStats[] }>(
             `/api/stats?hub=${hub}&week=${weekKey}`,
-            ac.signal
-          ),
-          fetchJson<{ entries: BookingEntry[] }>(
-            `/api/bookings?hub=${hub}&week=${weekKey}&rep=${encodeURIComponent(rep)}`,
             ac.signal
           ),
         ]);
@@ -97,8 +91,6 @@ export default function HubRepPage() {
         setLoadingRows(false);
         setStats(statsData.stats?.find((s) => s.repId === repId) ?? null);
         setLoadingStats(false);
-        setBookingEntries(bookingsData.entries ?? []);
-        setLoadingBookings(false);
         retryCountRef.current = 0;
         setSlowLoading(false);
       } catch (err) {
@@ -108,7 +100,6 @@ export default function HubRepPage() {
           setSlowLoading(true);
           setLoadingRows(false);
           setLoadingStats(false);
-          setLoadingBookings(false);
           fetchData(rep);
           return;
         }
@@ -118,7 +109,6 @@ export default function HubRepPage() {
         setSlowLoading(false);
         setLoadingRows(false);
         setLoadingStats(false);
-        setLoadingBookings(false);
       }
     },
     [weekKey, hub, hubCfg]
@@ -143,8 +133,16 @@ export default function HubRepPage() {
     setRepName(null);
     setRows([]);
     setStats(null);
-    setBookingEntries([]);
     setError(null);
+  }
+
+  async function handleDeleteRDV(id: string) {
+    await fetch('/api/rdv', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (repName) fetchData(repName);
   }
 
   function handleBack() {
@@ -276,19 +274,17 @@ export default function HubRepPage() {
                 </div>
               </>
             ) : (
-              <>
-                {loadingBookings ? (
-                  <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
-                ) : (
-                  <BookingChart entries={bookingEntries} weekStart={weekKey} />
-                )}
-                <section>
-                  <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                    RDV effectués cette semaine ({rows.length})
-                  </h2>
-                  <RDVList rows={rows} loading={loadingRows} />
-                </section>
-              </>
+              <section>
+                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                  RDV effectués cette semaine ({rows.length})
+                </h2>
+                <RDVList
+                rows={rows}
+                loading={loadingRows}
+                onEdit={setEditingRDV}
+                onDelete={handleDeleteRDV}
+              />
+              </section>
             )}
 
             <Scorecard stats={stats} loading={loadingStats} />
@@ -322,6 +318,17 @@ export default function HubRepPage() {
           onCRMPrompt={(data) => {
             setCRMPrefill(data);
             setActiveTab('crm');
+          }}
+        />
+      )}
+
+      {editingRDV && (
+        <RDVEditModal
+          row={editingRDV}
+          onClose={() => setEditingRDV(null)}
+          onSuccess={() => {
+            setToast({ message: 'RDV modifié avec succès !', type: 'success' });
+            if (repName) fetchData(repName);
           }}
         />
       )}

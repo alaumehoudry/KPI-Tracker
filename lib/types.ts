@@ -1,4 +1,5 @@
 export interface RDVRow {
+  id: string;
   semaine: string;
   commercial: string;
   client: string;
@@ -6,11 +7,9 @@ export interface RDVRow {
   heureRDV: string;
   rdvEffectue: 'Oui' | 'Non';
   venteSignee: 'Oui' | 'Non';
-  clientActive: 'Oui' | 'Non';
   netRevenue: number | null;
   notes: string;
   rdvValide: 1;
-  // Mod 5 — product types (col L, M, N)
   register: boolean;
   contrat: boolean;
   posPlus: boolean;
@@ -22,10 +21,8 @@ export interface RepStats {
   totalRDV: number;
   rdvEffectues: number;
   ventesSignees: number;
-  clientsActives: number;
   tauxPresence: number;
   tauxClosing: number;
-  tauxActivation: number;
   netRevenue: number;
   // Mod 5
   totalRegister: number;
@@ -37,10 +34,8 @@ export interface TeamSummary {
   totalRDV: number;
   totalPresents: number;
   totalVentes: number;
-  totalActives: number;
   tauxPresence: number;
   tauxClosing: number;
-  tauxActivation: number;
   netRevenue: number;
   // Mod 5
   totalRegister: number;
@@ -48,12 +43,6 @@ export interface TeamSummary {
   totalPosPlus: number;
 }
 
-/** One aggregated day of bookings (col L = booking date) */
-export interface BookingEntry {
-  repName: string; // e.g. "LORIS"
-  date: string;    // YYYY-MM-DD
-  count: number;
-}
 
 export interface NewRDVPayload {
   hub: string;
@@ -63,7 +52,6 @@ export interface NewRDVPayload {
   heureRDV: string;
   rdvEffectue: boolean;
   venteSignee: boolean;
-  clientActive: boolean;
   netRevenue: number | null;
   notes: string;
   // Mod 5

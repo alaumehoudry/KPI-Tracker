@@ -107,7 +107,6 @@ export const BOOKING_TAB    = 'Booking overview';
 
 export const KPI_TARGETS = {
   rdvHebdo:       15,
-  tauxPresence:   70,
-  tauxClosing:    50,
-  tauxActivation: 70,
+  tauxPresence: 70,
+  tauxClosing:  50,
 };

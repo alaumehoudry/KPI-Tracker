@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 kpi-tracker-*.json
+
+# clerk configuration (can include secrets)
+/.clerk/

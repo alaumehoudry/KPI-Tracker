@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import BookingChart from '@/components/BookingChart';
 import RDVList from '@/components/RDVList';
+import RDVEditModal from '@/components/RDVEditModal';
 import Scorecard from '@/components/Scorecard';
 import AgendaWeek from '@/components/AgendaWeek';
-import type { RDVRow, RepStats, BookingEntry } from '@/lib/types';
+import type { RDVRow, RepStats } from '@/lib/types';
 import { HUB_CONFIG } from '@/lib/constants';
 import { fetchJson, TimeoutError } from '@/lib/utils';
 
@@ -33,12 +33,12 @@ export default function HubRepDetailPage() {
     return startOfWeek(new Date(), { weekStartsOn: 1 });
   });
   const [agendaMode,     setAgendaMode]     = useState(true);
-  const [rows,           setRows]           = useState<RDVRow[]>([]);
-  const [stats,          setStats]          = useState<RepStats | null>(null);
-  const [bookingEntries, setBookingEntries] = useState<BookingEntry[]>([]);
+  const [rows,  setRows]  = useState<RDVRow[]>([]);
+  const [stats, setStats] = useState<RepStats | null>(null);
   const [loading,        setLoading]        = useState(false);
   const [slowLoading,    setSlowLoading]    = useState(false);
   const [error,          setError]          = useState<string | null>(null);
+  const [editingRDV,     setEditingRDV]     = useState<RDVRow | null>(null);
 
   const refreshTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef      = useRef<AbortController | null>(null);
@@ -65,7 +65,7 @@ export default function HubRepDetailPage() {
     setError(null);
 
     try {
-      const [rdvData, statsData, bookingsData] = await Promise.all([
+      const [rdvData, statsData] = await Promise.all([
         fetchJson<{ rows: RDVRow[] }>(
           `/api/rdv?hub=${hub}&rep=${encodeURIComponent(repName)}&week=${weekKey}`,
           ac.signal
@@ -74,16 +74,11 @@ export default function HubRepDetailPage() {
           `/api/stats?hub=${hub}&week=${weekKey}`,
           ac.signal
         ),
-        fetchJson<{ entries: BookingEntry[] }>(
-          `/api/bookings?hub=${hub}&week=${weekKey}&rep=${encodeURIComponent(repName)}`,
-          ac.signal
-        ),
       ]);
 
       if (ac.signal.aborted) return;
       setRows(rdvData.rows ?? []);
       setStats(statsData.stats?.find((s) => s.repId === repId) ?? null);
-      setBookingEntries(bookingsData.entries ?? []);
       retryCountRef.current = 0;
       setSlowLoading(false);
       setLoading(false);
@@ -211,17 +206,22 @@ export default function HubRepDetailPage() {
         ) : (
           <>
             <section>
-              {loading ? (
-                <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
-              ) : (
-                <BookingChart entries={bookingEntries} weekStart={weekKey} title="RDV planifiés (bookings)" />
-              )}
-            </section>
-            <section>
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
                 RDV effectués ({rows.length})
               </h2>
-              <RDVList rows={rows} loading={loading} />
+              <RDVList
+                rows={rows}
+                loading={loading}
+                onEdit={setEditingRDV}
+                onDelete={async (id) => {
+                  await fetch('/api/rdv', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id }),
+                  });
+                  fetchData();
+                }}
+              />
             </section>
           </>
         )}
@@ -229,6 +229,14 @@ export default function HubRepDetailPage() {
         <Scorecard stats={stats} loading={loading} />
         <div className="pb-8" />
       </main>
+
+      {editingRDV && (
+        <RDVEditModal
+          row={editingRDV}
+          onClose={() => setEditingRDV(null)}
+          onSuccess={() => { setEditingRDV(null); fetchData(); }}
+        />
+      )}
     </div>
   );
 }

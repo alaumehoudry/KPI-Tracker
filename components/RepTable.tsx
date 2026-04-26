@@ -7,12 +7,10 @@ import { getColorForRate } from '@/lib/utils';
 interface Props {
   stats: RepStats[];
   view: 'weekly' | 'monthly';
-  rdvPrisMap?: Record<string, number>;
   onRepClick?: (repName: string) => void;
 }
 
-export default function RepTable({ stats, view, rdvPrisMap, onRepClick }: Props) {
-  const rdvTarget = view === 'weekly' ? KPI_TARGETS.rdvHebdo : KPI_TARGETS.rdvHebdo * 4;
+export default function RepTable({ stats, onRepClick }: Props) {
 
   const sorted = [...stats]
     .filter((s) => s.totalRDV > 0)
@@ -33,27 +31,17 @@ export default function RepTable({ stats, view, rdvPrisMap, onRepClick }: Props)
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Nom</th>
-              <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">RDV pris</th>
-              <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">% vs cible</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">RDV effectués</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Taux présence</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Ventes signées</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Taux closing</th>
-              <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Activés</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Register</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Contrat</th>
               <th className="text-center px-3 py-3 text-xs font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">POS Plus</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {sorted.map((stat) => {
-              const pris = rdvPrisMap?.[stat.repName] ?? null;
-              const pctVsCible =
-                pris !== null && rdvTarget > 0
-                  ? Math.round((pris / rdvTarget) * 100)
-                  : null;
-
-              return (
+            {sorted.map((stat) => (
                 <tr key={stat.repId} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3.5 font-semibold text-gray-900 whitespace-nowrap">
                     {onRepClick ? (
@@ -66,16 +54,6 @@ export default function RepTable({ stats, view, rdvPrisMap, onRepClick }: Props)
                     ) : (
                       stat.repName
                     )}
-                  </td>
-                  <td className="px-3 py-3.5 text-center font-bold text-gray-700">
-                    {pris !== null ? pris : '—'}
-                  </td>
-                  <td
-                    className={`px-3 py-3.5 text-center font-bold ${
-                      pctVsCible !== null ? getColorForRate(pctVsCible, 100) : 'text-gray-300'
-                    }`}
-                  >
-                    {pctVsCible !== null ? `${pctVsCible}%` : '—'}
                   </td>
                   <td className="px-3 py-3.5 text-center font-bold text-gray-700">
                     {stat.rdvEffectues > 0 ? stat.rdvEffectues : '—'}
@@ -94,9 +72,6 @@ export default function RepTable({ stats, view, rdvPrisMap, onRepClick }: Props)
                     {stat.rdvEffectues > 0 ? `${stat.tauxClosing}%` : '—'}
                   </td>
                   <td className="px-3 py-3.5 text-center font-bold text-gray-700">
-                    {stat.clientsActives > 0 ? stat.clientsActives : '—'}
-                  </td>
-                  <td className="px-3 py-3.5 text-center font-bold text-gray-700">
                     {stat.totalRegister > 0 ? stat.totalRegister : '—'}
                   </td>
                   <td className="px-3 py-3.5 text-center font-bold text-gray-700">
@@ -106,8 +81,7 @@ export default function RepTable({ stats, view, rdvPrisMap, onRepClick }: Props)
                     {stat.totalPosPlus > 0 ? stat.totalPosPlus : '—'}
                   </td>
                 </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
       </div>
